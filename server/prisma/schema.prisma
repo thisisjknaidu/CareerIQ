@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  resumes         Resume[]
+  applications    Application[]
+  jobDescriptions JobDescription[]
+  jobMatches      JobMatch[]
+}
+
+model Resume {
+  id         Int      @id @default(autoincrement())
+  title      String
+  fileName   String
+  fileUrl    String?
+  resumeText String?
+  score      Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  analysis   ResumeAnalysis?
+  jobMatches JobMatch[]
+
+  @@index([userId])
+}
+
+model ResumeAnalysis {
+  id Int @id @default(autoincrement())
+
+  summary String?
+
+  skills         Json?
+  experience     Json?
+  education      Json?
+  projects       Json?
+  certifications Json?
+
+  strengths     Json?
+  weaknesses    Json?
+  missingSkills Json?
+
+  atsScore     Int?
+  keywordScore Int?
+  impactScore  Int?
+  overallScore Int?
+
+  analyzedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resumeId Int @unique
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+}
+
+model Job {
+  id          Int      @id @default(autoincrement())
+  title       String
+  company     String
+  location    String?
+  description String
+  jobUrl      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Application {
+  id        Int      @id @default(autoincrement())
+
+  status    String   @default("SAVED")
+  appliedAt DateTime?
+
+  notes     String?
+
+  source    String?
+  jobUrl    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId           Int
+  jobDescriptionId Int
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobDescription JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobDescriptionId])
+  @@index([userId])
+  @@index([jobDescriptionId])
+}
+
+model JobDescription {
+  id          Int      @id @default(autoincrement())
+  title       String
+  company     String?
+  location    String?
+  description String
+  jobUrl      String?
+  salary      String?
+
+  requiredSkills   Json?
+  technologies     Json?
+  responsibilities Json?
+  education       Json?
+  experience      Json?
+  keywords        Json?
+
+  summary String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobMatches   JobMatch[]
+  applications Application[]
+
+  @@index([userId])
+}
+
+model JobMatch {
+  id Int @id @default(autoincrement())
+
+  overallScore    Int?
+  skillScore      Int?
+  experienceScore Int?
+  educationScore  Int?
+  keywordScore    Int?
+
+  summary String?
+
+  matchedSkills   Json?
+  missingSkills   Json?
+  strengths       Json?
+  recommendations Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId           Int
+  resumeId         Int
+  jobDescriptionId Int
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume         Resume         @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  jobDescription JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([resumeId, jobDescriptionId])
+  @@index([userId])
+  @@index([resumeId])
+  @@index([jobDescriptionId])
+}
