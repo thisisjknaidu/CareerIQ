@@ -11,3 +11,5 @@ generated/
 *.log
 
 .DS_Store
+
+.env.example
