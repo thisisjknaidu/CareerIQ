@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 
 import prisma from "../lib/prisma.js";
+import cloudinary from "../config/cloudinary.js";
 import authMiddleware from "../middleware/auth.middleware.js";
 import upload from "../middleware/upload.middleware.js";
 import parseResumeFile from "../services/resume/parser.service.js";
@@ -86,7 +87,8 @@ router.get("/:id", authMiddleware, async (req, res) => {
 /*
   POST /api/resumes
 
-  Creates a resume record using an uploaded PDF/DOCX file.
+  Uploads a PDF/DOCX resume to Cloudinary,
+  extracts its text, and saves the resume record in Neon.
 */
 router.post("/", authMiddleware, upload.single("resume"), async (req, res) => {
   try {
@@ -96,15 +98,42 @@ router.post("/", authMiddleware, upload.single("resume"), async (req, res) => {
       });
     }
 
-    const uploadedFilePath = req.file.path;
-
-    const resumeText = await parseResumeFile(uploadedFilePath);
+    /*
+      Parse the resume directly from the uploaded
+      file buffer. No local uploads/ folder is required.
+    */
+    const resumeText = await parseResumeFile(
+      req.file.buffer,
+      req.file.originalname,
+    );
 
     if (!resumeText) {
       return res.status(400).json({
         message: "We could not extract any text from this resume.",
       });
     }
+
+    /*
+      Upload the original resume file to Cloudinary.
+    */
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: "careeriq/resumes",
+          resource_type: "raw",
+          public_id: `${Date.now()}-${path.parse(req.file.originalname).name}`,
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        },
+      );
+
+      uploadStream.end(req.file.buffer);
+    });
 
     const title =
       req.body.title?.trim() || path.parse(req.file.originalname).name;
@@ -113,7 +142,7 @@ router.post("/", authMiddleware, upload.single("resume"), async (req, res) => {
       data: {
         title,
         fileName: req.file.originalname,
-        fileUrl: null,
+        fileUrl: uploadResult.secure_url,
         resumeText,
         userId: req.userId,
       },

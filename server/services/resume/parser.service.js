@@ -1,11 +1,7 @@
-import fs from "fs/promises";
-import path from "path";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
-const parsePdf = async (filePath) => {
-  const fileBuffer = await fs.readFile(filePath);
-
+const parsePdf = async (fileBuffer) => {
   const parser = new PDFParse({
     data: fileBuffer,
   });
@@ -19,23 +15,23 @@ const parsePdf = async (filePath) => {
   }
 };
 
-const parseDocx = async (filePath) => {
+const parseDocx = async (fileBuffer) => {
   const result = await mammoth.extractRawText({
-    path: filePath,
+    buffer: fileBuffer,
   });
 
   return result.value.trim();
 };
 
-const parseResumeFile = async (filePath) => {
-  const extension = path.extname(filePath).toLowerCase();
+const parseResumeFile = async (fileBuffer, originalFileName) => {
+  const extension = originalFileName.toLowerCase().split(".").pop();
 
-  if (extension === ".pdf") {
-    return parsePdf(filePath);
+  if (extension === "pdf") {
+    return parsePdf(fileBuffer);
   }
 
-  if (extension === ".docx") {
-    return parseDocx(filePath);
+  if (extension === "docx") {
+    return parseDocx(fileBuffer);
   }
 
   throw new Error("Unsupported resume file type.");
